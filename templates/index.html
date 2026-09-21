@@ -1,0 +1,1126 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Chương trình Quản lý và Thống kê số lượng sinh viên trong một lớp học, vẽ biểu đồ Matplotlib trên cổng 5175">
+  <title>Thống Kê Sinh Viên Lớp Học | Conda kiemtra (Port 5175)</title>
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <style>
+    :root {
+      --bg-main: #0b0f19;
+      --bg-card: rgba(17, 24, 39, 0.75);
+      --bg-card-hover: rgba(24, 33, 53, 0.85);
+      --bg-input: rgba(30, 41, 59, 0.6);
+      
+      --border-subtle: rgba(255, 255, 255, 0.08);
+      --border-focus: rgba(99, 102, 241, 0.4);
+      
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --text-dim: #64748b;
+      
+      --indigo: #6366f1;
+      --indigo-gradient: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+      --emerald: #10b981;
+      --rose: #f43f5e;
+      --amber: #f59e0b;
+      --cyan: #06b6d4;
+      
+      --radius-lg: 18px;
+      --radius-md: 12px;
+      --radius-sm: 8px;
+      --shadow-card: 0 20px 40px -15px rgba(0, 0, 0, 0.6);
+      --transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+      background-color: var(--bg-main);
+      background-image: 
+        radial-gradient(circle at 10% 20%, rgba(99, 102, 241, 0.15) 0%, transparent 40%),
+        radial-gradient(circle at 90% 80%, rgba(244, 63, 94, 0.12) 0%, transparent 40%),
+        radial-gradient(circle at 50% 50%, rgba(16, 185, 129, 0.08) 0%, transparent 60%);
+      background-attachment: fixed;
+      color: var(--text-main);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      line-height: 1.5;
+    }
+
+    /* Top Bar */
+    header {
+      background: rgba(11, 15, 25, 0.85);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--border-subtle);
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      padding: 14px 28px;
+    }
+
+    .header-container {
+      max-width: 1360px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .brand-logo {
+      width: 42px;
+      height: 42px;
+      border-radius: var(--radius-md);
+      background: linear-gradient(135deg, #6366f1 0%, #a855f7 50%, #ec4899 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      box-shadow: 0 8px 20px rgba(99, 102, 241, 0.35);
+    }
+
+    .brand-text h1 {
+      font-size: 1.15rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      background: linear-gradient(135deg, #ffffff 0%, #cbd5e1 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .brand-text p {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+    }
+
+    .badge-bar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 12px;
+      border-radius: 9999px;
+      font-size: 0.76rem;
+      font-weight: 600;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-muted);
+    }
+
+    .badge.active {
+      background: rgba(16, 185, 129, 0.12);
+      border-color: rgba(16, 185, 129, 0.3);
+      color: #34d399;
+    }
+
+    .badge-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: currentColor;
+      box-shadow: 0 0 8px currentColor;
+    }
+
+    /* Main Workspace */
+    main {
+      flex: 1;
+      max-width: 1360px;
+      width: 100%;
+      margin: 0 auto;
+      padding: 24px 28px 48px;
+    }
+
+    .grid-container {
+      display: grid;
+      grid-template-columns: 460px 1fr;
+      gap: 28px;
+      align-items: start;
+    }
+
+    @media (max-width: 1080px) {
+      .grid-container {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* Cards */
+    .card {
+      background: var(--bg-card);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      padding: 24px;
+      box-shadow: var(--shadow-card);
+      transition: var(--transition);
+    }
+
+    .card:hover {
+      border-color: var(--border-focus);
+    }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 20px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .card-title {
+      font-size: 1.05rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: #fff;
+    }
+
+    /* Tabs */
+    .tabs-nav {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 6px;
+      background: rgba(0, 0, 0, 0.25);
+      padding: 5px;
+      border-radius: var(--radius-md);
+      margin-bottom: 20px;
+      border: 1px solid var(--border-subtle);
+    }
+
+    .tab-btn {
+      padding: 8px 4px;
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      font-size: 0.76rem;
+      font-weight: 700;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      text-align: center;
+      transition: var(--transition);
+      font-family: inherit;
+    }
+
+    .tab-btn:hover {
+      color: #fff;
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .tab-btn.active {
+      background: var(--indigo);
+      color: #fff;
+      box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+    }
+
+    /* Form Fields */
+    .field-group {
+      margin-bottom: 16px;
+    }
+
+    .field-label {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: var(--text-main);
+      margin-bottom: 6px;
+    }
+
+    .field-tag {
+      font-size: 0.7rem;
+      padding: 2px 7px;
+      border-radius: 4px;
+      font-weight: 700;
+    }
+
+    .stepper-box {
+      display: flex;
+      align-items: center;
+      background: var(--bg-input);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      overflow: hidden;
+      transition: var(--transition);
+    }
+
+    .stepper-box:focus-within {
+      border-color: var(--indigo);
+      box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+    }
+
+    .stepper-btn {
+      width: 42px;
+      height: 42px;
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      font-size: 1.15rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: var(--transition);
+      user-select: none;
+    }
+
+    .stepper-btn:hover {
+      background: rgba(255, 255, 255, 0.08);
+      color: #fff;
+    }
+
+    .input-num {
+      flex: 1;
+      height: 42px;
+      background: transparent;
+      border: none;
+      color: #fff;
+      font-size: 1.05rem;
+      font-weight: 700;
+      text-align: center;
+      outline: none;
+      font-family: inherit;
+    }
+
+    .input-text {
+      width: 100%;
+      height: 42px;
+      background: var(--bg-input);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      color: #fff;
+      font-size: 0.9rem;
+      font-weight: 600;
+      padding: 0 14px;
+      outline: none;
+      font-family: inherit;
+      transition: var(--transition);
+    }
+
+    .input-text:focus {
+      border-color: var(--indigo);
+      box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+    }
+
+    /* Chart Type Selector */
+    .chart-type-selector {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    .type-btn {
+      padding: 10px;
+      background: var(--bg-input);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      color: var(--text-muted);
+      font-size: 0.82rem;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: var(--transition);
+    }
+
+    .type-btn:hover {
+      color: #fff;
+      border-color: rgba(255, 255, 255, 0.2);
+    }
+
+    .type-btn.active {
+      background: rgba(99, 102, 241, 0.15);
+      border-color: var(--indigo);
+      color: #818cf8;
+    }
+
+    /* Presets */
+    .presets-wrap {
+      margin-top: 14px;
+      margin-bottom: 20px;
+    }
+
+    .presets-title {
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-dim);
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    .presets-btns {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .preset-pill {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-muted);
+      padding: 6px 12px;
+      border-radius: 9999px;
+      font-size: 0.72rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: var(--transition);
+    }
+
+    .preset-pill:hover {
+      background: rgba(99, 102, 241, 0.15);
+      border-color: rgba(99, 102, 241, 0.4);
+      color: #fff;
+    }
+
+    /* Action Buttons */
+    .btn-submit {
+      width: 100%;
+      height: 48px;
+      background: var(--indigo-gradient);
+      border: none;
+      border-radius: var(--radius-md);
+      color: white;
+      font-size: 0.95rem;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      box-shadow: 0 10px 25px -5px rgba(99, 102, 241, 0.5);
+      transition: var(--transition);
+    }
+
+    .btn-submit:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 14px 28px -5px rgba(99, 102, 241, 0.65);
+    }
+
+    .btn-action {
+      height: 38px;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      color: var(--text-main);
+      font-size: 0.82rem;
+      font-weight: 600;
+      padding: 0 14px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      text-decoration: none;
+      transition: var(--transition);
+    }
+
+    .btn-action:hover {
+      background: rgba(255, 255, 255, 0.12);
+      color: #fff;
+    }
+
+    /* KPI Summary Cards */
+    .kpi-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    .kpi-card {
+      background: rgba(0, 0, 0, 0.25);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 12px 16px;
+      position: relative;
+    }
+
+    .kpi-title {
+      font-size: 0.72rem;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      font-weight: 700;
+    }
+
+    .kpi-num {
+      font-size: 1.45rem;
+      font-weight: 800;
+      color: #fff;
+      margin: 2px 0;
+    }
+
+    .kpi-badge {
+      font-size: 0.7rem;
+      font-weight: 700;
+      color: #a5b4fc;
+    }
+
+    /* Chart Viewer Container */
+    .chart-box {
+      background: #ffffff;
+      border-radius: var(--radius-md);
+      overflow: hidden;
+      box-shadow: 0 12px 35px rgba(0, 0, 0, 0.35);
+      min-height: 440px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+
+    .chart-img {
+      width: 100%;
+      height: auto;
+      max-height: 540px;
+      object-fit: contain;
+      display: block;
+    }
+
+    .loader {
+      position: absolute;
+      inset: 0;
+      background: rgba(11, 15, 25, 0.75);
+      backdrop-filter: blur(6px);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease;
+    }
+
+    .loader.active {
+      opacity: 1;
+      pointer-events: all;
+    }
+
+    .spinner {
+      width: 38px;
+      height: 38px;
+      border: 3px solid rgba(255, 255, 255, 0.15);
+      border-radius: 50%;
+      border-top-color: var(--indigo);
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* Table Breakdown */
+    .breakdown-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+      font-size: 0.82rem;
+    }
+
+    .breakdown-table th {
+      text-align: left;
+      padding: 10px 14px;
+      color: var(--text-dim);
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .breakdown-table td {
+      padding: 10px 14px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+      color: var(--text-main);
+    }
+
+    .breakdown-table tr:last-child td {
+      border-bottom: none;
+    }
+
+    /* Toast */
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: #1e293b;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      color: #fff;
+      padding: 12px 20px;
+      border-radius: var(--radius-md);
+      font-size: 0.86rem;
+      font-weight: 600;
+      box-shadow: 0 15px 30px rgba(0, 0, 0, 0.5);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      transform: translateY(100px);
+      opacity: 0;
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      z-index: 9999;
+    }
+
+    .toast.show {
+      transform: translateY(0);
+      opacity: 1;
+    }
+
+    footer {
+      border-top: 1px solid var(--border-subtle);
+      padding: 18px 28px;
+      background: rgba(11, 15, 25, 0.6);
+      text-align: center;
+      font-size: 0.8rem;
+      color: var(--text-dim);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Header -->
+  <header>
+    <div class="header-container">
+      <div class="brand">
+        <div class="brand-logo" aria-hidden="true">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M22 10v6M2 10l10-5 10 5-10 5z"></path>
+            <path d="M6 12v5c3 3 9 3 12 0v-5"></path>
+          </svg>
+        </div>
+        <div class="brand-text">
+          <h1>THỐNG KÊ SINH VIÊN LỚP HỌC</h1>
+          <p>Nhập số lượng sinh viên & vẽ biểu đồ Matplotlib trực quan</p>
+        </div>
+      </div>
+
+      <div class="badge-bar">
+        <span class="badge" title="Môi trường ảo Anaconda">
+          🐍 Conda: <strong>kiemtra</strong>
+        </span>
+        <span class="badge" title="Cổng mạng phục vụ">
+          🌐 Cổng: <strong>5175</strong>
+        </span>
+        <span class="badge active" title="Trạng thái máy chủ">
+          <span class="badge-dot"></span> Đang hoạt động
+        </span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main>
+    <div class="grid-container">
+      
+      <!-- Left Panel: Input & Control -->
+      <section class="card" aria-labelledby="form-title">
+        <div class="card-header">
+          <h2 id="form-title" class="card-title">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6366f1" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+            </svg>
+            Thông Tin & Số Liệu Lớp
+          </h2>
+        </div>
+
+        <!-- Class Name -->
+        <div class="field-group">
+          <label for="inputTenLop" class="field-label">
+            <span>Tên Lớp Học:</span>
+          </label>
+          <input type="text" id="inputTenLop" class="input-text" value="Lớp 12A1" placeholder="Ví dụ: CNTT K21A, Lớp 12A1...">
+        </div>
+
+        <!-- Mode Tabs -->
+        <div class="tabs-nav" role="tablist">
+          <button type="button" class="tab-btn active" onclick="chuyenTab('gender')" id="tab-gender">1. Nam / Nữ</button>
+          <button type="button" class="tab-btn" onclick="chuyenTab('grade')" id="tab-grade">2. Học Lực</button>
+          <button type="button" class="tab-btn" onclick="chuyenTab('group')" id="tab-group">3. Tổ/Nhóm</button>
+          <button type="button" class="tab-btn" onclick="chuyenTab('scores')" id="tab-scores">4. Phổ Điểm</button>
+        </div>
+
+        <!-- Chart Type Selection -->
+        <div class="field-label">
+          <span>Chọn kiểu biểu đồ:</span>
+        </div>
+        <div class="chart-type-selector">
+          <button type="button" class="type-btn active" id="btnTypeBar" onclick="chonKieuBieuDo('bar')">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="18" y1="20" x2="18" y2="10"></line>
+              <line x1="12" y1="20" x2="12" y2="4"></line>
+              <line x1="6" y1="20" x2="6" y2="14"></line>
+            </svg>
+            Biểu Đồ Cột
+          </button>
+          <button type="button" class="type-btn" id="btnTypePie" onclick="chonKieuBieuDo('pie')">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21.21 15.89A10 10 0 1 1 8 2.83"></path>
+              <path d="M22 12A10 10 0 0 0 12 2v10z"></path>
+            </svg>
+            Biểu Đồ Tròn
+          </button>
+        </div>
+
+        <form id="mainForm" onsubmit="event.preventDefault(); capNhatBieuDo();">
+          
+          <!-- TAB 1: GENDER -->
+          <div id="panel-gender">
+            <div class="field-group">
+              <div class="field-label">
+                <span>Số lượng sinh viên Nam:</span>
+                <span class="field-tag" style="background: rgba(59,130,246,0.15); color: #60a5fa;">Nam</span>
+              </div>
+              <div class="stepper-box">
+                <button type="button" class="stepper-btn" onclick="tangGiam('inputNam', -1)">-</button>
+                <input type="number" id="inputNam" class="input-num" min="0" value="25">
+                <button type="button" class="stepper-btn" onclick="tangGiam('inputNam', 1)">+</button>
+              </div>
+            </div>
+
+            <div class="field-group">
+              <div class="field-label">
+                <span>Số lượng sinh viên Nữ:</span>
+                <span class="field-tag" style="background: rgba(244,63,94,0.15); color: #fb7185;">Nữ</span>
+              </div>
+              <div class="stepper-box">
+                <button type="button" class="stepper-btn" onclick="tangGiam('inputNu', -1)">-</button>
+                <input type="number" id="inputNu" class="input-num" min="0" value="18">
+                <button type="button" class="stepper-btn" onclick="tangGiam('inputNu', 1)">+</button>
+              </div>
+            </div>
+
+            <div class="presets-wrap">
+              <div class="presets-title">Dữ liệu mẫu nhanh:</div>
+              <div class="presets-btns">
+                <button type="button" class="preset-pill" onclick="mauGender(30, 15)">CNTT (30 Nam / 15 Nữ)</button>
+                <button type="button" class="preset-pill" onclick="mauGender(12, 33)">Kinh tế (12 Nam / 33 Nữ)</button>
+                <button type="button" class="preset-pill" onclick="mauGender(20, 20)">Cân bằng (20 / 20)</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- TAB 2: GRADE -->
+          <div id="panel-grade" style="display: none;">
+            <div class="field-group">
+              <div class="field-label">
+                <span>Xuất sắc (ĐTB ≥ 9.0):</span>
+                <span class="field-tag" style="background: rgba(16,185,129,0.15); color: #34d399;">Xuất sắc</span>
+              </div>
+              <div class="stepper-box">
+                <button type="button" class="stepper-btn" onclick="tangGiam('inputXS', -1)">-</button>
+                <input type="number" id="inputXS" class="input-num" min="0" value="6">
+                <button type="button" class="stepper-btn" onclick="tangGiam('inputXS', 1)">+</button>
+              </div>
+            </div>
+
+            <div class="field-group">
+              <div class="field-label">
+                <span>Giỏi (8.0 ≤ ĐTB < 9.0):</span>
+                <span class="field-tag" style="background: rgba(59,130,246,0.15); color: #60a5fa;">Giỏi</span>
+              </div>
+              <div class="stepper-box">
+                <button type="button" class="stepper-btn" onclick="tangGiam('inputGioi', -1)">-</button>
+                <input type="number" id="inputGioi" class="input-num" min="0" value="14">
+                <button type="button" class="stepper-btn" onclick="tangGiam('inputGioi', 1)">+</button>
+              </div>
+            </div>
+
+            <div class="field-group">
+              <div class="field-label">
+                <span>Khá (6.5 ≤ ĐTB < 8.0):</span>
+                <span class="field-tag" style="background: rgba(245,158,11,0.15); color: #fbbf24;">Khá</span>
+              </div>
+              <div class="stepper-box">
+                <button type="button" class="stepper-btn" onclick="tangGiam('inputKha', -1)">-</button>
+                <input type="number" id="inputKha" class="input-num" min="0" value="16">
+                <button type="button" class="stepper-btn" onclick="tangGiam('inputKha', 1)">+</button>
+              </div>
+            </div>
+
+            <div class="field-group">
+              <div class="field-label">
+                <span>Trung bình (5.0 ≤ ĐTB < 6.5):</span>
+                <span class="field-tag" style="background: rgba(139,92,246,0.15); color: #c084fc;">Trung bình</span>
+              </div>
+              <div class="stepper-box">
+                <button type="button" class="stepper-btn" onclick="tangGiam('inputTB', -1)">-</button>
+                <input type="number" id="inputTB" class="input-num" min="0" value="5">
+                <button type="button" class="stepper-btn" onclick="tangGiam('inputTB', 1)">+</button>
+              </div>
+            </div>
+
+            <div class="field-group">
+              <div class="field-label">
+                <span>Yếu / Kém (ĐTB < 5.0):</span>
+                <span class="field-tag" style="background: rgba(239,68,68,0.15); color: #f87171;">Yếu</span>
+              </div>
+              <div class="stepper-box">
+                <button type="button" class="stepper-btn" onclick="tangGiam('inputYeu', -1)">-</button>
+                <input type="number" id="inputYeu" class="input-num" min="0" value="2">
+                <button type="button" class="stepper-btn" onclick="tangGiam('inputYeu', 1)">+</button>
+              </div>
+            </div>
+
+            <div class="presets-wrap">
+              <div class="presets-title">Dữ liệu mẫu nhanh:</div>
+              <div class="presets-btns">
+                <button type="button" class="preset-pill" onclick="mauGrade(8, 18, 12, 4, 1)">Lớp Giỏi (8-18-12-4-1)</button>
+                <button type="button" class="preset-pill" onclick="mauGrade(3, 10, 20, 8, 4)">Lớp Đại Trà</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- TAB 3: GROUP -->
+          <div id="panel-group" style="display: none;">
+            <div id="groupList">
+              <!-- Rendered via JS -->
+            </div>
+            <button type="button" class="btn-action" style="width: 100%; margin-bottom: 16px;" onclick="themTo()">
+              + Thêm Tổ / Nhóm Mới
+            </button>
+          </div>
+
+          <!-- TAB 4: SCORES -->
+          <div id="panel-scores" style="display: none;">
+            <div class="field-group">
+              <div class="field-label">
+                <span>Nhập danh sách điểm (cách nhau dấu phẩy):</span>
+              </div>
+              <textarea id="inputScores" class="input-text" style="height: 100px; padding: 10px; font-size: 0.85rem;" placeholder="Ví dụ: 8.5, 9, 7.5, 6, 8, 10, 5.5, 7, 8.5, 9, 6.5, 7...">8, 9, 7.5, 6, 8.5, 9, 10, 5, 7, 8, 9, 6.5, 7.5, 8, 4, 9.5, 8.5, 6</textarea>
+            </div>
+            <div class="presets-wrap">
+              <div class="presets-title">Mẫu điểm lớp:</div>
+              <div class="presets-btns">
+                <button type="button" class="preset-pill" onclick="mauScore('9, 8.5, 9.5, 10, 8, 9, 8.5, 9, 10, 7.5, 8, 9.5')">Điểm Cao</button>
+                <button type="button" class="preset-pill" onclick="mauScore('5, 6, 7, 6.5, 5.5, 7.5, 8, 6, 7, 5, 4.5, 8, 7')">Phổ Thông</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Submit Button -->
+          <button type="submit" id="btnSubmit" class="btn-submit">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+              <polygon points="5 3 19 12 5 21 5 3"></polygon>
+            </svg>
+            Vẽ Lại Biểu Đồ
+          </button>
+        </form>
+
+      </section>
+
+      <!-- Right Panel: Visual Dashboard -->
+      <section class="card" aria-labelledby="chart-title">
+        <div class="card-header">
+          <h2 id="chart-title" class="card-title">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#a855f7" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+              <line x1="3" y1="9" x2="21" y2="9"></line>
+              <line x1="9" y1="21" x2="9" y2="9"></line>
+            </svg>
+            Biểu Đồ Trực Quan & Phân Tích
+          </h2>
+          <div style="display: flex; gap: 8px;">
+            <a id="btnDownload" href="/download" download="bieu_do_sinh_vien.png" class="btn-action" title="Tải ảnh PNG độ phân giải 300 DPI">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="7 10 12 15 17 10"></polyline>
+                <line x1="12" y1="15" x2="12" y2="3"></line>
+              </svg>
+              Tải PNG (300 DPI)
+            </a>
+          </div>
+        </div>
+
+        <!-- KPI Summary row -->
+        <div class="kpi-row" id="kpiContainer">
+          <!-- Dynamic KPI cards inserted here -->
+        </div>
+
+        <!-- Chart Display -->
+        <div class="chart-box">
+          <img id="chartImg" class="chart-img" src="/api/image" alt="Biểu đồ sinh viên lớp học">
+          <div id="loader" class="loader">
+            <div class="spinner"></div>
+            <span style="font-size: 0.82rem; font-weight: 600; color: #fff;">Đang xử lý Matplotlib...</span>
+          </div>
+        </div>
+
+        <!-- Table Breakdown -->
+        <table class="breakdown-table">
+          <thead>
+            <tr>
+              <th>Phân Loại</th>
+              <th style="text-align: center;">Số Lượng Sinh Viên</th>
+              <th style="text-align: right;">Tỷ Lệ (%)</th>
+            </tr>
+          </thead>
+          <tbody id="tableBody">
+            <!-- Dynamic rows -->
+          </tbody>
+        </table>
+
+      </section>
+
+    </div>
+  </main>
+
+  <!-- Footer -->
+  <footer>
+    <p>Chương trình Quản lý Sinh viên Lớp học • Môi trường Anaconda <strong>kiemtra</strong> (Python 3.11) • Cổng mạng <strong>5175</strong></p>
+  </footer>
+
+  <!-- Toast -->
+  <div id="toast" class="toast">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#34d399" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+      <polyline points="22 4 12 14.01 9 11.01"></polyline>
+    </svg>
+    <span id="toastMsg">Cập nhật thành công!</span>
+  </div>
+
+  <script>
+    let currentMode = 'gender';
+    let currentChartType = 'bar';
+
+    let groupsData = [
+      { name: 'Tổ 1', count: 11 },
+      { name: 'Tổ 2', count: 12 },
+      { name: 'Tổ 3', count: 10 },
+      { name: 'Tổ 4', count: 10 }
+    ];
+
+    function showToast(msg) {
+      const toast = document.getElementById('toast');
+      document.getElementById('toastMsg').textContent = msg;
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), 2600);
+    }
+
+    function tangGiam(id, delta) {
+      const el = document.getElementById(id);
+      let val = parseInt(el.value) || 0;
+      val = Math.max(0, val + delta);
+      el.value = val;
+      capNhatBieuDo();
+    }
+
+    function chuyenTab(mode) {
+      currentMode = mode;
+      document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+      document.getElementById(`tab-${mode}`).classList.add('active');
+
+      document.getElementById('panel-gender').style.display = (mode === 'gender') ? 'block' : 'none';
+      document.getElementById('panel-grade').style.display = (mode === 'grade') ? 'block' : 'none';
+      document.getElementById('panel-group').style.display = (mode === 'group') ? 'block' : 'none';
+      document.getElementById('panel-scores').style.display = (mode === 'scores') ? 'block' : 'none';
+
+      if (mode === 'group') {
+        renderGroupList();
+      }
+      capNhatBieuDo();
+    }
+
+    function chonKieuBieuDo(type) {
+      currentChartType = type;
+      document.getElementById('btnTypeBar').classList.toggle('active', type === 'bar');
+      document.getElementById('btnTypePie').classList.toggle('active', type === 'pie');
+      capNhatBieuDo();
+    }
+
+    // Presets
+    function mauGender(nam, nu) {
+      document.getElementById('inputNam').value = nam;
+      document.getElementById('inputNu').value = nu;
+      capNhatBieuDo();
+      showToast(`Đã chọn: ${nam} Nam / ${nu} Nữ`);
+    }
+
+    function mauGrade(xs, gioi, kha, tb, yeu) {
+      document.getElementById('inputXS').value = xs;
+      document.getElementById('inputGioi').value = gioi;
+      document.getElementById('inputKha').value = kha;
+      document.getElementById('inputTB').value = tb;
+      document.getElementById('inputYeu').value = yeu;
+      capNhatBieuDo();
+      showToast('Đã áp dụng mẫu học lực');
+    }
+
+    function mauScore(scores) {
+      document.getElementById('inputScores').value = scores;
+      capNhatBieuDo();
+      showToast('Đã áp dụng danh sách điểm mẫu');
+    }
+
+    // Groups management
+    function renderGroupList() {
+      const container = document.getElementById('groupList');
+      container.innerHTML = '';
+      groupsData.forEach((g, idx) => {
+        const row = document.createElement('div');
+        row.className = 'field-group';
+        row.innerHTML = `
+          <div class="field-label">
+            <input type="text" value="${g.name}" onchange="groupsData[${idx}].name = this.value; capNhatBieuDo();" style="background:transparent; border:none; color:#fff; font-weight:700; width:120px;">
+            <button type="button" onclick="xoaTo(${idx})" style="background:none; border:none; color:#f87171; cursor:pointer; font-size:0.75rem;">✕ Xóa</button>
+          </div>
+          <div class="stepper-box">
+            <button type="button" class="stepper-btn" onclick="doiSoLuongTo(${idx}, -1)">-</button>
+            <input type="number" class="input-num" value="${g.count}" min="0" onchange="groupsData[${idx}].count = Math.max(0, parseInt(this.value)||0); capNhatBieuDo();">
+            <button type="button" class="stepper-btn" onclick="doiSoLuongTo(${idx}, 1)">+</button>
+          </div>
+        `;
+        container.appendChild(row);
+      });
+    }
+
+    function doiSoLuongTo(idx, delta) {
+      groupsData[idx].count = Math.max(0, groupsData[idx].count + delta);
+      renderGroupList();
+      capNhatBieuDo();
+    }
+
+    function themTo() {
+      const nextNum = groupsData.length + 1;
+      groupsData.push({ name: `Tổ ${nextNum}`, count: 10 });
+      renderGroupList();
+      capNhatBieuDo();
+    }
+
+    function xoaTo(idx) {
+      if (groupsData.length <= 1) {
+        showToast('Cần giữ lại ít nhất một tổ/nhóm');
+        return;
+      }
+      groupsData.splice(idx, 1);
+      renderGroupList();
+      capNhatBieuDo();
+    }
+
+    // API Request
+    async function capNhatBieuDo() {
+      const loader = document.getElementById('loader');
+      loader.classList.add('active');
+
+      const tenLop = document.getElementById('inputTenLop').value.trim() || 'Lớp Học';
+      const payload = {
+        mode: currentMode,
+        ten_lop: tenLop,
+        chart_type: currentChartType
+      };
+
+      if (currentMode === 'gender') {
+        payload.nam = parseInt(document.getElementById('inputNam').value) || 0;
+        payload.nu = parseInt(document.getElementById('inputNu').value) || 0;
+      } else if (currentMode === 'grade') {
+        payload.xuat_sac = parseInt(document.getElementById('inputXS').value) || 0;
+        payload.gioi = parseInt(document.getElementById('inputGioi').value) || 0;
+        payload.kha = parseInt(document.getElementById('inputKha').value) || 0;
+        payload.trung_binh = parseInt(document.getElementById('inputTB').value) || 0;
+        payload.yeu = parseInt(document.getElementById('inputYeu').value) || 0;
+      } else if (currentMode === 'group') {
+        payload.groups = groupsData;
+      } else if (currentMode === 'scores') {
+        payload.scores_text = document.getElementById('inputScores').value;
+      }
+
+      try {
+        const res = await fetch('/api/chart', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        if (!res.ok) throw new Error('Lỗi máy chủ kết xuất biểu đồ');
+
+        const data = await res.json();
+
+        // Cập nhật ảnh đồ thị
+        document.getElementById('chartImg').src = data.image_base64;
+
+        // Cập nhật KPI cards
+        const kpiContainer = document.getElementById('kpiContainer');
+        let kpiHTML = `
+          <div class="kpi-card" style="border-left: 3px solid var(--indigo);">
+            <div class="kpi-title">Tổng Sĩ Số</div>
+            <div class="kpi-num">${data.tong_sv}</div>
+            <span class="kpi-badge">Sinh viên cả lớp</span>
+          </div>
+        `;
+
+        data.items.forEach(item => {
+          kpiHTML += `
+            <div class="kpi-card">
+              <div class="kpi-title">${item.label}</div>
+              <div class="kpi-num">${item.count}</div>
+              <span class="kpi-badge">${item.pct}%</span>
+            </div>
+          `;
+        });
+        kpiContainer.innerHTML = kpiHTML;
+
+        // Cập nhật bảng thống kê
+        const tbody = document.getElementById('tableBody');
+        let tableHTML = '';
+        data.items.forEach(item => {
+          tableHTML += `
+            <tr>
+              <td><strong>${item.label}</strong></td>
+              <td style="text-align: center; font-weight: 700;">${item.count} SV</td>
+              <td style="text-align: right; color: var(--indigo); font-weight: 700;">${item.pct}%</td>
+            </tr>
+          `;
+        });
+        tableHTML += `
+          <tr style="background: rgba(255,255,255,0.03); font-weight: 800;">
+            <td>TỔNG CỘNG</td>
+            <td style="text-align: center; color: #34d399;">${data.tong_sv} SV</td>
+            <td style="text-align: right; color: #34d399;">100.0%</td>
+          </tr>
+        `;
+        tbody.innerHTML = tableHTML;
+
+      } catch (err) {
+        console.error(err);
+        showToast('Có lỗi: ' + err.message);
+      } finally {
+        loader.classList.remove('active');
+      }
+    }
+
+    // Khởi tạo ban đầu
+    window.addEventListener('DOMContentLoaded', () => {
+      capNhatBieuDo();
+    });
+  </script>
+</body>
+</html>
