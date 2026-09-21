@@ -261,15 +261,138 @@ def xu_ly_du_lieu(payload: Dict[str, Any]) -> Dict[str, Any]:
         luu_anh=True
     )
 
+    danh_gia = tinh_danh_gia_lop(che_do, items_stat, tong_sv, payload)
+
     return {
         'ten_lop': ten_lop,
         'mode': che_do,
         'chart_type': chart_type,
         'tong_sv': tong_sv,
         'items': items_stat,
+        'evaluation': danh_gia,
         'image_base64': img_b64,
         'saved_file': 'bieu_do_sinh_vien.png'
     }
+
+
+def tinh_danh_gia_lop(che_do: str, items: List[Dict[str, Any]], tong_sv: int, payload: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Tính năng mới: Đánh giá lớp học thông minh và đưa ra nhận xét sư phạm tự động.
+    """
+    if tong_sv == 0:
+        return {
+            'tieu_de': 'Đánh giá lớp học',
+            'chi_so_chinh': '0%',
+            'ten_chi_so': 'Chưa có sinh viên',
+            'trang_thai': 'warning',
+            'nhan_xet': 'Lớp học hiện chưa có dữ liệu sinh viên để đánh giá.'
+        }
+
+    if che_do == 'grade':
+        # Thống kê theo học lực: Xuất sắc, Giỏi, Khá, TB, Yếu
+        counts = {it['label']: it['count'] for it in items}
+        kha_gioi = counts.get('Xuất sắc', 0) + counts.get('Giỏi', 0) + counts.get('Khá', 0)
+        ty_le_dat = round((kha_gioi / tong_sv * 100), 1)
+        yeu = counts.get('Yếu', 0)
+
+        if ty_le_dat >= 80 and yeu == 0:
+            trang_thai = 'excellent'
+            nhan_xet = f"Chất lượng học tập xuất sắc! Có {ty_le_dat}% sinh viên đạt loại Khá - Giỏi trở lên, không có sinh viên yếu kém."
+        elif ty_le_dat >= 65:
+            trang_thai = 'good'
+            nhan_xet = f"Mặt bằng học lực tốt ({ty_le_dat}% Khá - Giỏi). Cần quan tâm thêm {counts.get('Trung bình', 0) + yeu} sinh viên mức TB/Yếu."
+        else:
+            trang_thai = 'warning'
+            nhan_xet = f"Tỷ lệ Khá - Giỏi đạt {ty_le_dat}%. Lớp cần tăng cường các buổi phụ đạo và hỗ trợ nhóm học tập."
+
+        return {
+            'tieu_de': 'Chất Lượng Học Lực',
+            'chi_so_chinh': f'{ty_le_dat}%',
+            'ten_chi_so': 'Tỷ lệ Khá - Giỏi trở lên',
+            'trang_thai': trang_thai,
+            'nhan_xet': nhan_xet
+        }
+
+    elif che_do == 'group':
+        counts = [it['count'] for it in items if it['count'] > 0]
+        avg_c = round(tong_sv / len(items), 1) if items else 0
+        if counts:
+            max_c = max(counts)
+            min_c = min(counts)
+            diff = max_c - min_c
+            if diff <= 2:
+                trang_thai = 'excellent'
+                nhan_xet = f"Phân bổ sĩ số giữa các tổ rất đồng đều (chênh lệch chỉ {diff} SV, TB ~{avg_c} SV/tổ)."
+            elif diff <= 5:
+                trang_thai = 'good'
+                nhan_xet = f"Sĩ số các tổ tương đối hợp lý (chênh lệch {diff} SV giữa tổ đông nhất và ít nhất)."
+            else:
+                trang_thai = 'warning'
+                nhan_xet = f"Chênh lệch sĩ số giữa các tổ khá lớn ({diff} SV). Nên cân đối lại số lượng để hoạt động nhóm hiệu quả hơn."
+        else:
+            trang_thai = 'warning'
+            nhan_xet = "Chưa có dữ liệu thành viên trong các tổ."
+
+        return {
+            'tieu_de': 'Độ Đồng Đều Các Tổ',
+            'chi_so_chinh': f'{len(items)} Tổ',
+            'ten_chi_so': f'TB ~{avg_c} SV/tổ',
+            'trang_thai': trang_thai,
+            'nhan_xet': nhan_xet
+        }
+
+    elif che_do == 'scores':
+        counts = {it['label']: it['count'] for it in items}
+        yeu = counts.get('< 5.0 (Yếu)', 0)
+        tren_tb = tong_sv - yeu
+        ty_le_pass = round((tren_tb / tong_sv * 100), 1)
+        xs_gioi = counts.get('9.0 - 10 (Xuất sắc)', 0) + counts.get('8.0 - 8.9 (Giỏi)', 0)
+        ty_le_xs_gioi = round((xs_gioi / tong_sv * 100), 1)
+
+        if ty_le_pass >= 90 and ty_le_xs_gioi >= 50:
+            trang_thai = 'excellent'
+            nhan_xet = f"Kết quả bài kiểm tra rất cao: {ty_le_pass}% đạt yêu cầu (≥ 5.0), trong đó {ty_le_xs_gioi}% đạt điểm Giỏi & Xuất sắc."
+        elif ty_le_pass >= 75:
+            trang_thai = 'good'
+            nhan_xet = f"Tỷ lệ bài thi đạt yêu cầu là {ty_le_pass}%. Còn {yeu} bài kiểm tra dưới trung bình cần ôn tập bổ sung kiến thức."
+        else:
+            trang_thai = 'warning'
+            nhan_xet = f"Tỷ lệ đạt chỉ {ty_le_pass}%, có {yeu} bài kiểm tra dưới 5.0. Đề xuất tổ chức kiểm tra lại hoặc chữa bài chi tiết."
+
+        return {
+            'tieu_de': 'Tỷ Lệ Đạt Điểm Kiểm Tra',
+            'chi_so_chinh': f'{ty_le_pass}%',
+            'ten_chi_so': 'Bài kiểm tra ≥ 5.0',
+            'trang_thai': trang_thai,
+            'nhan_xet': nhan_xet
+        }
+
+    else:
+        # Giới tính: Nam - Nữ
+        counts = {it['label']: it['count'] for it in items}
+        nam = counts.get('Nam', 0)
+        nu = counts.get('Nữ', 0)
+        diff_pct = abs(round((nam - nu) / tong_sv * 100, 1))
+
+        if diff_pct <= 15:
+            trang_thai = 'excellent'
+            nhan_xet = f"Tỷ lệ giới tính rất cân bằng ({nam} Nam / {nu} Nữ, chênh lệch chỉ {diff_pct}%)."
+        elif diff_pct <= 40:
+            trang_thai = 'good'
+            nhan_xet = f"Cơ cấu giới tính: {nam} Nam - {nu} Nữ (chênh lệch {diff_pct}%). Phù hợp cho các hoạt động phong trào và học tập."
+        else:
+            trang_thai = 'good'
+            nhom_dong = "Nam" if nam > nu else "Nữ"
+            nhan_xet = f"Lớp có cơ cấu thiên về sinh viên {nhom_dong} ({max(nam, nu)}/{tong_sv} SV, chiếm {max(round(nam/tong_sv*100,1), round(nu/tong_sv*100,1))}%)."
+
+        ti_le_str = f"{round(nam/tong_sv*100, 1)}% : {round(nu/tong_sv*100, 1)}%" if tong_sv > 0 else "0 : 0"
+        return {
+            'tieu_de': 'Cân Bằng Giới Tính',
+            'chi_so_chinh': ti_le_str,
+            'ten_chi_so': 'Tỷ lệ Nam : Nữ',
+            'trang_thai': trang_thai,
+            'nhan_xet': nhan_xet
+        }
 
 
 def nhap_so_nguyen(thong_bao: str, min_val: int = 0) -> int:

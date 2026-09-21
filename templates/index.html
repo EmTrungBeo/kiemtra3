@@ -849,7 +849,14 @@
             </svg>
             Biểu Đồ Trực Quan & Phân Tích
           </h2>
-          <div style="display: flex; gap: 8px;">
+          <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+            <button type="button" id="btnCopyReport" class="btn-action" onclick="saoChepBaoCao()" title="Sao chép toàn bộ báo cáo và nhận xét lớp học">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+              </svg>
+              📋 Sao Chép Báo Cáo
+            </button>
             <a id="btnDownload" href="/download" download="bieu_do_sinh_vien.png" class="btn-action" title="Tải ảnh PNG độ phân giải 300 DPI">
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
@@ -889,6 +896,24 @@
           </tbody>
         </table>
 
+        <!-- Smart Evaluation Card (New Feature) -->
+        <div id="evalCard" style="margin-top: 22px; background: rgba(0, 0, 0, 0.28); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); padding: 18px 20px;">
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <span id="evalBadgeIcon" style="font-size: 1.25rem;">✨</span>
+              <span id="evalTitle" style="font-size: 0.95rem; font-weight: 700; color: #fff;">Đánh Giá Lớp Học Thông Minh</span>
+            </div>
+            <span id="evalStatusTag" class="field-tag" style="background: rgba(16, 185, 129, 0.18); color: #34d399; font-weight: 700; padding: 4px 10px; border-radius: 6px;">Xuất Sắc</span>
+          </div>
+          <div style="display: flex; align-items: baseline; gap: 10px; margin-bottom: 8px;">
+            <span id="evalMainMetric" style="font-size: 1.55rem; font-weight: 800; color: var(--indigo);">--</span>
+            <span id="evalMetricLabel" style="font-size: 0.8rem; color: var(--text-dim); font-weight: 600;">Chỉ số chính</span>
+          </div>
+          <p id="evalRemark" style="font-size: 0.86rem; color: #cbd5e1; line-height: 1.5; margin: 0; background: rgba(255, 255, 255, 0.04); padding: 11px 14px; border-radius: var(--radius-sm); border-left: 3px solid var(--indigo);">
+            Đang tải dữ liệu đánh giá...
+          </p>
+        </div>
+
       </section>
 
     </div>
@@ -911,6 +936,7 @@
   <script>
     let currentMode = 'gender';
     let currentChartType = 'bar';
+    let lastReportData = null;
 
     let groupsData = [
       { name: 'Tổ 1', count: 11 },
@@ -923,7 +949,60 @@
       const toast = document.getElementById('toast');
       document.getElementById('toastMsg').textContent = msg;
       toast.classList.add('show');
-      setTimeout(() => toast.classList.remove('show'), 2600);
+      setTimeout(() => toast.classList.remove('show'), 2800);
+    }
+
+    function saoChepBaoCao() {
+      if (!lastReportData) {
+        showToast('Chưa có dữ liệu để sao chép!');
+        return;
+      }
+      const d = lastReportData;
+      const lines = [
+        `========================================`,
+        `📊 BÁO CÁO THỐNG KÊ SINH VIÊN - ${d.ten_lop.toUpperCase()}`,
+        `========================================`,
+        `• Tổng sĩ số lớp   : ${d.tong_sv} sinh viên`,
+        `• Phân loại        : ${d.evaluation ? d.evaluation.tieu_de : d.mode}`,
+        `----------------------------------------`,
+        `CHI TIẾT PHÂN BỔ:`
+      ];
+
+      d.items.forEach(it => {
+        lines.push(`  - ${it.label}: ${it.count} SV (${it.pct}%)`);
+      });
+
+      if (d.evaluation) {
+        lines.push(`----------------------------------------`);
+        lines.push(`ĐÁNH GIÁ SƯ PHẠM:`);
+        lines.push(`• Chỉ số chính     : ${d.evaluation.chi_so_chinh} (${d.evaluation.ten_chi_so})`);
+        lines.push(`• Nhận xét tự động : ${d.evaluation.nhan_xet}`);
+      }
+      lines.push(`----------------------------------------`);
+      lines.push(`(Báo cáo xuất từ Hệ thống Thống Kê Sinh Viên - Cổng 5175)`);
+
+      const content = lines.join('\n');
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(content).then(() => {
+          showToast('📋 Đã sao chép báo cáo vào bộ nhớ tạm!');
+        }).catch(() => {
+          fallbackCopy(content);
+        });
+      } else {
+        fallbackCopy(content);
+      }
+    }
+
+    function fallbackCopy(text) {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      showToast('📋 Đã sao chép báo cáo vào bộ nhớ tạm!');
     }
 
     function tangGiam(id, delta) {
@@ -1108,6 +1187,38 @@
           </tr>
         `;
         tbody.innerHTML = tableHTML;
+
+        // Lưu dữ liệu báo cáo mới nhất để phục vụ sao chép
+        lastReportData = data;
+
+        // Cập nhật thẻ Đánh Giá Thông Minh
+        if (data.evaluation) {
+          document.getElementById('evalTitle').textContent = data.evaluation.tieu_de || 'Đánh Giá Lớp Học';
+          document.getElementById('evalMainMetric').textContent = data.evaluation.chi_so_chinh || '';
+          document.getElementById('evalMetricLabel').textContent = data.evaluation.ten_chi_so || '';
+          document.getElementById('evalRemark').textContent = data.evaluation.nhan_xet || '';
+
+          const tag = document.getElementById('evalStatusTag');
+          const icon = document.getElementById('evalBadgeIcon');
+          const st = data.evaluation.trang_thai;
+
+          if (st === 'excellent') {
+            tag.style.background = 'rgba(16, 185, 129, 0.18)';
+            tag.style.color = '#34d399';
+            tag.textContent = '🌟 Xuất Sắc';
+            icon.textContent = '🌟';
+          } else if (st === 'good') {
+            tag.style.background = 'rgba(59, 130, 246, 0.18)';
+            tag.style.color = '#60a5fa';
+            tag.textContent = '👍 Tốt / Cân Bằng';
+            icon.textContent = '🎯';
+          } else {
+            tag.style.background = 'rgba(245, 158, 11, 0.18)';
+            tag.style.color = '#fbbf24';
+            tag.textContent = '⚡ Cần Lưu Ý';
+            icon.textContent = '💡';
+          }
+        }
 
       } catch (err) {
         console.error(err);
